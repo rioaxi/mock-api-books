@@ -1,7 +1,22 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const app = express();
+const path = require('path');
 
 app.use(express.json());
+
+
+const JWT_SECRET = 'your_secret_key';
+
+const users = [
+    {
+        id: 1,
+        username: 'testuser',
+        password: bcrypt.hashSync('password', 10) // Hashed password
+    }
+];
+
 
 let books = [
     { id: 1, title: 'To Kill a Mockingbird', author: 'Harper Lee', year: 1960 },
@@ -36,15 +51,47 @@ let books = [
     { id: 30, title: 'The Old Man and the Sea', author: 'Ernest Hemingway', year: 1952 }
 ];
 
+const authenticateJWT = (req, res, next) => {
+    const token = req.header('Authorization')?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Forbidden: Invalid token' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'login.html'));
+});
+
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    const user = users.find(u => u.username === username);
+
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token });
+});
 
 // List all books
-app.get('/books', (req, res) => {
+app.get('/books', authenticateJWT, (req, res) => {
     res.json(books);
 });
 
 
 // GET a book by ID
-app.get('/books/:id', (req, res) => {
+app.get('/books/:id', authenticateJWT, (req, res) => {
     const book = books.find(b => b.id === parseInt(req.params.id));
     if (!book) {
         return res.status(404).json({ error: 'Book not found' });
@@ -54,7 +101,7 @@ app.get('/books/:id', (req, res) => {
 
 
 // Add a new book (ID, title, author, year)
-app.post('/books', (req, res) => {
+app.post('/books', authenticateJWT, (req, res) => {
     const { title, author, year } = req.body;
 
     if (!title || !author || !year) {
@@ -73,7 +120,7 @@ app.post('/books', (req, res) => {
 
 
 // Update a book by ID
-app.put('/books/:id', (req, res) => {
+app.put('/books/:id', authenticateJWT, (req, res) => {
     const book = books.find(b => b.id === parseInt(req.params.id));
     if (!book) {
         return res.status(404).json({ error: 'Book not found' });
@@ -93,7 +140,7 @@ app.put('/books/:id', (req, res) => {
 
 
 // Delete a book by ID
-app.delete('/books/:id', (req, res) => {
+app.delete('/books/:id', authenticateJWT, (req, res) => {
     const bookIndex = books.findIndex(b => b.id === parseInt(req.params.id));
     if (bookIndex === -1) {
         return res.status(404).json({ error: 'Book not found' });

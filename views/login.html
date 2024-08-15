@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form id="login-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br><br>
+        <button type="submit">Login</button>
+    </form>
+    <p id="message"></p>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const response = await fetch('http://localhost:3000/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Save the token in local storage (or cookies)
+                localStorage.setItem('token', data.token);
+                document.getElementById('message').textContent = 'Login successful!';
+            } else {
+                document.getElementById('message').textContent = 'Login failed: ' + data.error;
+            }
+        });
+    </script>
+</body>
+</html>
+
+<button id="get-books">Get Books</button>
+<div id="books"></div>
+
+<script>
+    document.getElementById('get-books').addEventListener('click', async () => {
+        const token = localStorage.getItem('token');
+
+        const response = await fetch('http://localhost:3000/books', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            document.getElementById('books').innerHTML = JSON.stringify(data, null, 2);
+        } else {
+            document.getElementById('books').textContent = 'Failed to fetch books: ' + data.error;
+        }
+    });
+</script>
