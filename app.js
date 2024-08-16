@@ -104,8 +104,23 @@ app.get('/books/:id', authenticateJWT, (req, res) => {
 app.post('/books', authenticateJWT, (req, res) => {
     const { title, author, year } = req.body;
 
-    if (!title || !author || !year) {
-        return res.status(400).json({ error: 'Title, author, and year are required' });
+    // Validation checks
+    let errors = {};
+
+    if (!title || typeof title !== 'string' || title.length > 255) {
+        errors.title = 'Title is required and should be a string with a maximum length of 255 characters.';
+    }
+
+    if (!author || typeof author !== 'string' || author.length > 255) {
+        errors.author = 'Author is required and should be a string with a maximum length of 255 characters.';
+    }
+
+    if (!year || typeof year !== 'number' || year < 0 || year > new Date().getFullYear()) {
+        errors.year = 'Year is required and should be a valid number between 0 and the current year.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).json({ errors });
     }
 
     const newBook = {
@@ -114,6 +129,7 @@ app.post('/books', authenticateJWT, (req, res) => {
         author,
         year
     };
+
     books.push(newBook);
     res.status(201).json(newBook);
 });
@@ -121,21 +137,33 @@ app.post('/books', authenticateJWT, (req, res) => {
 
 // Update a book by ID
 app.put('/books/:id', authenticateJWT, (req, res) => {
-    const book = books.find(b => b.id === parseInt(req.params.id));
-    if (!book) {
+    const bookIndex = books.findIndex(b => b.id === parseInt(req.params.id));
+    if (bookIndex === -1) {
         return res.status(404).json({ error: 'Book not found' });
     }
 
     const { title, author, year } = req.body;
-    if (!title && !author && !year) {
-        return res.status(400).json({ error: 'At least one of title, author, or year must be provided to update' });
+    let errors = {};
+
+    if (title && (typeof title !== 'string' || title.length > 255)) {
+        errors.title = 'Title should be a string with a maximum length of 255 characters.';
     }
 
-    book.title = title || book.title;
-    book.author = author || book.author;
-    book.year = year || book.year;
+    if (author && (typeof author !== 'string' || author.length > 255)) {
+        errors.author = 'Author should be a string with a maximum length of 255 characters.';
+    }
 
-    res.json(book);
+    if (year && (typeof year !== 'number' || year < 0 || year > new Date().getFullYear())) {
+        errors.year = 'Year should be a valid number between 0 and the current year.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).json({ errors });
+    }
+
+    const updatedBook = { ...books[bookIndex], title, author, year };
+    books[bookIndex] = updatedBook;
+    res.json(updatedBook);
 });
 
 
@@ -146,8 +174,8 @@ app.delete('/books/:id', authenticateJWT, (req, res) => {
         return res.status(404).json({ error: 'Book not found' });
     }
 
-    const deletedBook = books.splice(bookIndex, 1);
-    res.json(deletedBook);
+    books.splice(bookIndex, 1); 
+    res.status(200).json({ message: 'Book deleted successfully' });
 });
 
 
