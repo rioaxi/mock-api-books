@@ -3,9 +3,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const app = express();
 const path = require('path');
+const timeout = require('connect-timeout');
 
 app.use(express.json());
+app.use(timeout('5s'));
 
+function haltOnTimedOut(req, res, next) {
+    if (!req.timedout) next();
+}
 
 const JWT_SECRET = 'your_secret_key';
 
@@ -85,13 +90,13 @@ app.post('/login', (req, res) => {
 });
 
 // List all books
-app.get('/books', authenticateJWT, (req, res) => {
+app.get('/books', authenticateJWT, haltOnTimedOut, (req, res) => {
     res.json(books);
 });
 
 
 // GET a book by ID
-app.get('/books/:id', authenticateJWT, (req, res) => {
+app.get('/books/:id', authenticateJWT, haltOnTimedOut, (req, res) => {
     const book = books.find(b => b.id === parseInt(req.params.id));
     if (!book) {
         return res.status(404).json({ error: 'Book not found' });
@@ -101,7 +106,7 @@ app.get('/books/:id', authenticateJWT, (req, res) => {
 
 
 // Add a new book (ID, title, author, year)
-app.post('/books', authenticateJWT, (req, res) => {
+app.post('/books', authenticateJWT, haltOnTimedOut, (req, res) => {
     const { title, author, year } = req.body;
 
     // Validation checks
@@ -136,7 +141,7 @@ app.post('/books', authenticateJWT, (req, res) => {
 
 
 // Update a book by ID
-app.put('/books/:id', authenticateJWT, (req, res) => {
+app.put('/books/:id', authenticateJWT, haltOnTimedOut, (req, res) => {
     const bookIndex = books.findIndex(b => b.id === parseInt(req.params.id));
     if (bookIndex === -1) {
         return res.status(404).json({ error: 'Book not found' });
@@ -168,7 +173,7 @@ app.put('/books/:id', authenticateJWT, (req, res) => {
 
 
 // Delete a book by ID
-app.delete('/books/:id', authenticateJWT, (req, res) => {
+app.delete('/books/:id', authenticateJWT, haltOnTimedOut, (req, res) => {
     const bookIndex = books.findIndex(b => b.id === parseInt(req.params.id));
     if (bookIndex === -1) {
         return res.status(404).json({ error: 'Book not found' });
@@ -178,6 +183,14 @@ app.delete('/books/:id', authenticateJWT, (req, res) => {
     res.status(200).json({ message: 'Book deleted successfully' });
 });
 
+// Adding delayed route for timeout testing
+app.get('/books/delayed', authenticateJWT, haltOnTimedOut, (req, res) => {
+    setTimeout(() => {
+        if (!req.timedout) {
+            res.json(books);
+        }
+    }, 6000); // 6s delay
+});
 
 // Handle undefined routes
 app.use((req, res) => {
@@ -191,6 +204,14 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
+// Error handling for timeouts
+app.use((err, req, res, next) => {
+    if (req.timedout) {
+        res.status(503).json({ error: 'Request timed out' });
+    } else {
+        next(err);
+    }
+});
 
 // Start the server
 const port = process.env.PORT || 3000;
