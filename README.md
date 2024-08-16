@@ -19,12 +19,12 @@ npm install
 
 ## Quick start
 
-1. 'node app.js'
+1. `node app.js`
 2. Open browser to http://localhost:3000/login 
 3. Username: 'testuser' Password: 'password' and click on 'Login'
 4. Click on 'Get Books' to browse the mock apis
 
 ## Testing
 
-- Run all tests: 'npm run test'
+- Run all tests: `npm run test`
 
